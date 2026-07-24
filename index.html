@@ -162,8 +162,8 @@
       <p class="sub" id="t_sub">Consolidado — Facebook / Meta Ads · todas as temperaturas</p>
       <div class="filter">
         <div class="grp"><span class="cap">◷ Período</span>
-          <span style="color:var(--muted);font-size:13px">De</span><input class="dateinput" type="date" disabled title="Período único: 26/06–02/07/2026">
-          <span style="color:var(--muted);font-size:13px">Até</span><input class="dateinput" type="date" disabled title="Período único: 26/06–02/07/2026">
+          <span style="color:var(--muted);font-size:13px">De</span><input class="dateinput" type="date" id="dateFrom" min="2026-06-26" max="2026-07-07">
+          <span style="color:var(--muted);font-size:13px">Até</span><input class="dateinput" type="date" id="dateTo" min="2026-06-26" max="2026-07-07">
         </div>
         <button class="btn apply" id="btnApply">Aplicar</button>
         <button class="btn clear" id="btnClear">Limpar</button>
@@ -261,15 +261,12 @@
     document.getElementById(l.dataset.tab).classList.add('active');
   }));
 
-  // ---- dados por temperatura (métricas de anúncio + vendas atribuídas) ----
-  const DATA={
-    quente:  {label:'Quente',      spend:1128.18, impr:252902, clk:3951, leads:862,  pv:2281, vendas:0, fat:0},
-    morno:   {label:'Morno',       spend:232.64,  impr:43589,  clk:637,  leads:179,  pv:378,  vendas:0, fat:0},
-    retarget:{label:'Remarketing', spend:2372.40, impr:352008, clk:5673, leads:1705, pv:3381, vendas:5, fat:367.02},
-    cpl:     {label:'CPL',         spend:42.36,   impr:16955,  clk:209,  leads:0,    pv:48,   vendas:0, fat:0}
-  };
+  // ---- dados DIÁRIOS: anúncios (por dia/temperatura) e vendas de tráfego (por dia) ----
+  const LABELS={quente:'Quente',morno:'Morno',retarget:'Remarketing',cpl:'CPL'};
   const ORDER=['quente','morno','retarget','cpl'];
-  const SEMORIGEM={vendas:5, fat:221.54}; // tráfego sem origem rastreável (só no consolidado)
+  const AD_DAILY=[{"d":"2026-06-26","b":"quente","spend":58.89,"impr":12629,"clk":298,"leads":81,"pv":182},{"d":"2026-06-26","b":"retarget","spend":421.98,"impr":49243,"clk":991,"leads":344,"pv":577},{"d":"2026-06-27","b":"quente","spend":78.58,"impr":22712,"clk":425,"leads":106,"pv":259},{"d":"2026-06-27","b":"retarget","spend":342.86,"impr":60897,"clk":960,"leads":295,"pv":575},{"d":"2026-06-28","b":"quente","spend":104.51,"impr":27739,"clk":474,"leads":96,"pv":279},{"d":"2026-06-28","b":"retarget","spend":277.43,"impr":47430,"clk":740,"leads":190,"pv":424},{"d":"2026-06-29","b":"quente","spend":168.48,"impr":41716,"clk":616,"leads":120,"pv":357},{"d":"2026-06-29","b":"retarget","spend":316.46,"impr":49937,"clk":828,"leads":227,"pv":477},{"d":"2026-06-30","b":"morno","spend":45.81,"impr":5127,"clk":66,"leads":14,"pv":36},{"d":"2026-06-30","b":"quente","spend":238.43,"impr":49470,"clk":707,"leads":134,"pv":360},{"d":"2026-06-30","b":"retarget","spend":457.19,"impr":62951,"clk":906,"leads":257,"pv":540},{"d":"2026-07-01","b":"morno","spend":96.96,"impr":19617,"clk":273,"leads":87,"pv":152},{"d":"2026-07-01","b":"quente","spend":308.87,"impr":62543,"clk":840,"leads":182,"pv":466},{"d":"2026-07-01","b":"retarget","spend":330.05,"impr":47407,"clk":712,"leads":208,"pv":446},{"d":"2026-07-02","b":"cpl","spend":42.36,"impr":16955,"clk":209,"leads":0,"pv":48},{"d":"2026-07-02","b":"morno","spend":89.87,"impr":18845,"clk":298,"leads":78,"pv":190},{"d":"2026-07-02","b":"quente","spend":170.42,"impr":36093,"clk":591,"leads":143,"pv":378},{"d":"2026-07-02","b":"retarget","spend":226.43,"impr":34143,"clk":536,"leads":184,"pv":342}];
+  // vendas de tráfego por dia: b='retarget' (anúncio pago) ou 'semorigem'
+  const SALES=[{"d":"2026-07-02","b":"retarget","v":3,"fat":220.08},{"d":"2026-07-02","b":"semorigem","v":5,"fat":221.54},{"d":"2026-07-03","b":"retarget","v":1,"fat":73.47},{"d":"2026-07-05","b":"retarget","v":1,"fat":73.47}];
 
   // ---- formatação ----
   const nf=new Intl.NumberFormat('pt-BR');
@@ -280,28 +277,36 @@
   let selected=new Set(); // temperaturas ativas
 
   function render(){
-    // buckets ativos: se nada selecionado => todos os 4 (consolidado)
-    const keys = selected.size ? ORDER.filter(k=>selected.has(k)) : ORDER.slice();
-    const a={spend:0,impr:0,clk:0,leads:0,pv:0,vendas:0,fat:0};
-    keys.forEach(k=>{const d=DATA[k];for(const f in a)a[f]+=d[f];});
-    // no consolidado, soma as vendas de tráfego sem origem rastreável
-    if(!selected.size){ a.vendas+=SEMORIGEM.vendas; a.fat+=SEMORIGEM.fat; }
+    const from=document.getElementById('dateFrom').value; // '' ou 'YYYY-MM-DD'
+    const to=document.getElementById('dateTo').value;
+    const inRange=d=> (!from||d>=from) && (!to||d<=to);
+    const tempOn=selected.size>0;
 
-    const cpm = a.impr? a.spend/a.impr*1000 :0;
-    const ctr = a.impr? a.clk/a.impr*100 :0;
-    const cpc = a.clk? a.spend/a.clk :0;
-    const cpl = a.leads? a.spend/a.leads :0;
-    const convpag = a.pv? a.leads/a.pv*100 :0;
-    const connect = a.clk? a.pv/a.clk*100 :0;
-    const conv = a.leads? a.vendas/a.leads*100 :0;
-    const cac = a.vendas? a.spend/a.vendas :0;
-    const roas = a.spend? a.fat/a.spend :0;
+    // ---- métricas de anúncio (filtra por dia + temperatura) ----
+    const a={spend:0,impr:0,clk:0,leads:0,pv:0};
+    AD_DAILY.forEach(r=>{ if(inRange(r.d) && (!tempOn||selected.has(r.b))){
+      a.spend+=r.spend;a.impr+=r.impr;a.clk+=r.clk;a.leads+=r.leads;a.pv+=r.pv; } });
 
-    // subtítulo + rótulo do funil
-    const isAll = !selected.size;
-    const lbl = isAll ? 'todas as temperaturas' : keys.map(k=>DATA[k].label).join(' + ');
-    document.getElementById('t_sub').textContent='Facebook / Meta Ads · '+lbl;
-    document.getElementById('f_title').textContent='Funil de Performance — '+(isAll?'Consolidado':keys.map(k=>DATA[k].label).join(' + '));
+    // ---- vendas de tráfego (filtra por dia da venda + temperatura) ----
+    // 'retarget' = anúncio pago (bucket remarketing); 'semorigem' = sem origem (só no consolidado)
+    let vendas=0,fat=0;
+    SALES.forEach(r=>{ if(!inRange(r.d)) return;
+      if(r.b==='retarget'){ if(!tempOn||selected.has('retarget')){vendas+=r.v;fat+=r.fat;} }
+      else if(r.b==='semorigem'){ if(!tempOn){vendas+=r.v;fat+=r.fat;} } });
+
+    const cpm=a.impr? a.spend/a.impr*1000:0, ctr=a.impr? a.clk/a.impr*100:0;
+    const cpc=a.clk? a.spend/a.clk:0, cpl=a.leads? a.spend/a.leads:0;
+    const convpag=a.pv? a.leads/a.pv*100:0, connect=a.clk? a.pv/a.clk*100:0;
+    const conv=a.leads? vendas/a.leads*100:0;
+    const cac=vendas? a.spend/vendas:0, roas=a.spend? fat/a.spend:0;
+
+    // rótulos
+    const isAll=!tempOn;
+    const tlabel=isAll?'todas as temperaturas':ORDER.filter(k=>selected.has(k)).map(k=>LABELS[k]).join(' + ');
+    let periodo='';
+    if(from||to){ periodo=' · '+(from?fmtBR(from):'…')+' a '+(to?fmtBR(to):'…'); }
+    document.getElementById('t_sub').textContent='Facebook / Meta Ads · '+tlabel+periodo;
+    document.getElementById('f_title').textContent='Funil de Performance — '+(isAll?'Consolidado':tlabel);
 
     // cards
     set('c_invcap', money(a.spend));
@@ -310,20 +315,22 @@
     set('c_cpl',    a.leads? money(cpl,2):dash);
     set('c_fb',     money(a.spend));
     set('c_fbleads',nf.format(a.leads)+' leads');
-    set('c_vendas', nf.format(a.vendas));
-    set('c_cac',    a.vendas? money(cac,2):dash);
-    set('c_roas',   a.vendas? roas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash);
+    set('c_vendas', nf.format(vendas));
+    set('c_cac',    vendas? money(cac,2):dash);
+    set('c_roas',   vendas? roas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash);
 
-    // funil em árvore
     renderTree('trafegoTree',{spend:a.spend,impr:a.impr,clk:a.clk,pv:a.pv,leads:a.leads,
-      vendas:a.vendas,fat:a.fat,cpm,ctr,cpc,cpl,convpag,connect,conv,roas});
+      vendas,fat,cpm,ctr,cpc,cpl,convpag,connect,conv,roas});
 
-    // nota explicativa
+    // nota
     const note=document.getElementById('f_note');
-    if(!selected.size){ note.textContent='Tráfego consolidado: 10 vendas (5 de anúncio pago + 5 sem origem rastreável). As 30 vendas orgânicas (WhatsApp/IG/Email) não entram no funil de tráfego — veja a aba Origens Tráfego.'; }
-    else if(a.vendas===0){ note.textContent='Os públicos '+keys.map(k=>DATA[k].label).join(' e ')+' geraram leads, mas nenhuma venda de anúncio pago foi atribuída a eles — as vendas pagas vieram do remarketing.'; }
-    else { note.textContent=a.vendas+' venda(s) de anúncio pago atribuída(s) a '+keys.map(k=>DATA[k].label).join(' e ')+'.'; }
+    let msg;
+    if(a.spend===0 && vendas===0){ msg='Sem dados de anúncio ou venda no período/público selecionado.'; }
+    else if(isAll && !from && !to){ msg='Tráfego consolidado: 10 vendas (5 de anúncio pago + 5 sem origem). As 30 vendas orgânicas não entram no funil de tráfego — veja a aba Origens Tráfego. Anúncios rodaram 26/06–02/07; vendas ocorreram 02/07–07/07.'; }
+    else { msg='Período/público filtrado — '+nf.format(a.leads)+' leads, '+vendas+' venda(s) de tráfego. Lembre: anúncios rodaram 26/06–02/07 e vendas 02/07–07/07, então intervalos estreitos podem mostrar leads sem vendas (ou vice-versa).'; }
+    note.textContent=msg;
   }
+  function fmtBR(iso){const p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
   function set(id,v){document.getElementById(id).textContent=v;}
 
   // ---- funil em árvore (mesmo estilo do print) ----
@@ -365,6 +372,8 @@
   document.getElementById('btnClear').addEventListener('click',()=>{
     selected.clear();
     document.querySelectorAll('.pill[data-temp]').forEach(p=>p.classList.remove('on'));
+    document.getElementById('dateFrom').value='';
+    document.getElementById('dateTo').value='';
     render();
   });
 
