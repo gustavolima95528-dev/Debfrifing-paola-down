@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Tráfego — Down Paola JUL26</title>
+<style>
+  :root{
+    --bg:#080b16; --bg2:#0b1020; --card:#0f1628; --card2:#111a30;
+    --line:#1c2540; --muted:#7f8aa8; --muted2:#5c6a8c; --gold:#eab24a;
+    --gold2:#f0c05a; --blue:#5aa9ff; --green:#5ad18a; --purple:#8b7be8;
+    --text:#e8ecf5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh}
+  .app{display:flex;min-height:100vh}
+  /* sidebar */
+  .sidebar{width:260px;flex-shrink:0;background:linear-gradient(180deg,#0a1020,#080b16);border-right:1px solid var(--line);padding:34px 26px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .brand-tag{font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;font-weight:600;margin-bottom:10px}
+  .brand{font-size:26px;font-weight:800;line-height:1.15;margin-bottom:46px;letter-spacing:.3px}
+  .nav{display:flex;flex-direction:column;gap:6px}
+  .nav a{display:flex;align-items:center;gap:12px;color:var(--muted);text-decoration:none;font-size:16px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:.15s}
+  .nav a .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);opacity:.5;flex-shrink:0}
+  .nav a:hover{color:var(--text);background:rgba(255,255,255,.03)}
+  .nav a.active{color:#fff;background:rgba(234,178,74,.08);font-weight:600;box-shadow:inset 3px 0 0 var(--gold)}
+  .nav a.active .dot{opacity:1}
+  .status{margin-top:auto;font-size:13px;color:var(--green);display:flex;align-items:center;gap:8px;font-family:ui-monospace,monospace}
+  .status .led{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  /* main */
+  .main{flex:1;padding:38px 46px 80px;max-width:1500px}
+  .page{display:none;animation:fade .25s ease}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font-size:40px;font-weight:800;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:16px;margin:6px 0 30px}
+  /* cards grid */
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}
+  @media(max-width:1400px){.grid{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+  .card{position:relative;background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:14px;padding:22px 20px;overflow:hidden}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--purple))}
+  .card.blue::before{background:linear-gradient(90deg,var(--blue),#3b6fd4)}
+  .card.green::before{background:linear-gradient(90deg,var(--green),#2f9d63)}
+  .card .lbl{font-size:12px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);font-weight:600;min-height:30px}
+  .card .val{font-size:32px;font-weight:800;color:var(--gold);margin:10px 0 8px;font-family:ui-monospace,"SF Mono",monospace;letter-spacing:-.5px}
+  .card.blue .val{color:var(--blue)}
+  .card.green .val{color:var(--green)}
+  .card.plain .val{color:var(--text)}
+  .card .foot{font-size:13px;color:var(--muted)}
+  .row-gap{margin-top:18px}
+  /* filter bar */
+  .filter{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:26px;display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+  .filter .grp{display:flex;align-items:center;gap:10px}
+  .filter .cap{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .pill{padding:8px 16px;border:1px solid var(--line);border-radius:20px;font-size:13px;color:var(--muted);background:transparent;cursor:pointer;transition:.15s}
+  .pill:hover{color:var(--text);border-color:var(--gold)}
+  .pill.on{background:var(--gold);color:#111;border-color:var(--gold);font-weight:600}
+  .dateinput{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--muted);font-size:13px}
+  .btn{padding:9px 22px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.apply{background:var(--gold);color:#111}
+  .btn.clear{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  /* funnel */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 30px;margin-top:26px}
+  .panel h3{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:24px}
+  .funnel{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px}
+  .fbox{background:var(--bg2);border:1px dashed #2a3557;border-radius:12px;padding:16px 14px;text-align:center}
+  .fbox .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;min-height:26px;display:flex;align-items:center;justify-content:center}
+  .fbox .v{font-size:22px;font-weight:800;font-family:ui-monospace,monospace}
+  .fbox.hi .v{color:var(--purple)}
+  .fbox.gold .v{color:var(--gold)}
+  .fbox.txt .v{color:var(--text)}
+  /* table */
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th{text-align:left;font-size:12px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:14px 10px;border-bottom:1px solid var(--line)}
+  td{padding:18px 10px;border-bottom:1px solid var(--line);font-size:16px}
+  td.num{font-family:ui-monospace,monospace}
+  tr:last-child td{border-bottom:none;font-weight:700}
+  tr.total td{color:var(--gold)}
+  .barcell{position:relative}
+  .bar{height:8px;border-radius:5px;background:linear-gradient(90deg,var(--gold),var(--purple));margin-top:6px}
+  .note{font-size:13px;color:var(--muted);margin-top:18px;line-height:1.6}
+  /* rich scrollable table */
+  .tablewrap{overflow-x:auto;border-radius:10px}
+  .tablewrap::-webkit-scrollbar{height:10px}
+  .tablewrap::-webkit-scrollbar-thumb{background:#2a3557;border-radius:6px}
+  table.rt{width:100%;min-width:1050px;border-collapse:collapse}
+  table.rt th{position:sticky;top:0;text-align:right;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card)}
+  table.rt th:first-child,table.rt td:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
+  table.rt td{text-align:right;padding:14px;border-bottom:1px solid var(--line);font-size:14px;font-family:ui-monospace,monospace;white-space:nowrap}
+  table.rt td:first-child{font-family:inherit;font-weight:600}
+  table.rt tbody tr:hover td{background:rgba(255,255,255,.02)}
+  table.rt tbody tr:hover td:first-child{background:#141d33}
+  .roas-good{color:var(--green);font-weight:700}
+  .roas-mid{color:var(--gold);font-weight:700}
+  .roas-bad{color:#e06a6a;font-weight:700}
+  .chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(139,123,232,.15);color:var(--purple);margin-left:8px;font-family:inherit;letter-spacing:.5px}
+  tr.trow-total td{font-weight:700;color:var(--gold);border-top:1px solid var(--line);background:rgba(234,178,74,.04)}
+  /* ---- funil em árvore ---- */
+  .tree{display:flex;gap:18px;overflow-x:auto;padding:8px 4px 22px;align-items:stretch}
+  .tree::-webkit-scrollbar{height:10px}
+  .tree::-webkit-scrollbar-thumb{background:#2a3557;border-radius:6px}
+  .stage{flex:0 0 150px;display:flex;flex-direction:column;position:relative}
+  .branch{height:118px;display:flex;flex-direction:column;align-items:center}
+  .branch.top{justify-content:flex-start}
+  .branch.bot{justify-content:flex-end}
+  .vconn{border-left:2px dashed #39406e;flex:1 1 auto;min-height:16px;width:0}
+  .mnode{position:relative;background:var(--bg2);border:1px solid #2a3557;border-radius:12px;padding:15px 8px;text-align:center;z-index:2}
+  .bnode{background:var(--bg2);border:1px dashed #40497e;border-radius:12px;padding:11px 8px;text-align:center;width:100%;z-index:2}
+  .stage:not(:last-child) .mnode::after{content:"";position:absolute;top:50%;left:100%;width:18px;border-top:2px dashed #39406e;transform:translateY(-50%);z-index:1}
+  .mnode .k,.bnode .k{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;line-height:1.25;min-height:26px;display:flex;align-items:center;justify-content:center}
+  .mnode .v{font-size:19px;font-weight:800;font-family:ui-monospace,monospace;color:var(--text)}
+  .mnode.gold .v{color:var(--gold)}
+  .bnode .v{font-size:17px;font-weight:800;font-family:ui-monospace,monospace;color:var(--purple)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand-tag">Tráfego Pago</div>
+    <div class="brand">Finanzas con<br>Proposito</div>
+    <nav class="nav">
+      <a data-tab="geral" class="active"><span class="dot"></span>Visão Geral</a>
+      <a data-tab="trafego"><span class="dot"></span>Visão Tráfego</a>
+      <a data-tab="anuncios"><span class="dot"></span>Origens Tráfego</a>
+      <a data-tab="etapa"><span class="dot"></span>Investimento por Etapa</a>
+    </nav>
+    <div class="status"><span class="led"></span>Down Paola · JUL26</div>
+  </aside>
+
+  <main class="main">
+    <!-- ===================== VISÃO GERAL ===================== -->
+    <section class="page active" id="geral">
+      <h1>Visão Geral</h1>
+      <p class="sub">Consolidado — tráfego pago (México)</p>
+      <div class="grid">
+        <div class="card"><div class="lbl">Investimento Captação</div><div class="val">$ 3.733</div><div class="foot">etapa de captação</div></div>
+        <div class="card"><div class="lbl">Investimento Total</div><div class="val">$ 3.776</div><div class="foot">todas as etapas</div></div>
+        <div class="card"><div class="lbl">Leads Tráfego</div><div class="val">2.746</div><div class="foot">Facebook / Meta</div></div>
+        <div class="card"><div class="lbl">CPM Médio</div><div class="val">$ 5,67</div><div class="foot">custo por mil impressões</div></div>
+        <div class="card"><div class="lbl">CPL Médio</div><div class="val">$ 1,37</div><div class="foot">custo por lead</div></div>
+      </div>
+      <div class="grid row-gap">
+        <div class="card"><div class="lbl">Vendas Tráfego</div><div class="val">10</div><div class="foot">ads pago + sem origem</div></div>
+        <div class="card green"><div class="lbl">Vendas Orgânico</div><div class="val">30</div><div class="foot">WhatsApp / IG / Email</div></div>
+        <div class="card plain"><div class="lbl">Vendas Total</div><div class="val">40</div><div class="foot">Reto 14 Dias</div></div>
+        <div class="card plain"><div class="lbl">Faturamento</div><div class="val" style="color:var(--gold)">$ 2.791</div><div class="foot">bruto USD</div></div>
+        <div class="card"><div class="lbl">CAC Geral</div><div class="val">$ 94,39</div><div class="foot">inv. total / todas as vendas</div></div>
+      </div>
+      <div class="grid row-gap">
+        <div class="card"><div class="lbl">ROAS Geral</div><div class="val">0,74</div><div class="foot">fat. total / inv. total</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>Funil de Performance — Consolidado</h3>
+        <div class="tree" id="geralTree"></div>
+      </div>
+    </section>
+
+    <!-- ===================== VISÃO TRÁFEGO ===================== -->
+    <section class="page" id="trafego">
+      <h1>Visão Tráfego</h1>
+      <p class="sub" id="t_sub">Consolidado — Facebook / Meta Ads · todas as temperaturas</p>
+      <div class="filter">
+        <div class="grp"><span class="cap">◷ Período</span>
+          <span style="color:var(--muted);font-size:13px">De</span><input class="dateinput" type="date" id="dateFrom" min="2026-06-26" max="2026-07-07">
+          <span style="color:var(--muted);font-size:13px">Até</span><input class="dateinput" type="date" id="dateTo" min="2026-06-26" max="2026-07-07">
+        </div>
+        <button class="btn apply" id="btnApply">Aplicar</button>
+        <button class="btn clear" id="btnClear">Limpar</button>
+        <div class="grp" style="margin-left:auto"><span class="cap">Temp.</span>
+          <button class="pill" data-temp="quente">Quente</button>
+          <button class="pill" data-temp="morno">Morno</button>
+          <button class="pill" data-temp="retarget">Remarketing</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card"><div class="lbl">Investimento Captação</div><div class="val" id="c_invcap">—</div><div class="foot">etapa de captação</div></div>
+        <div class="card"><div class="lbl">Investimento Total</div><div class="val" id="c_invtot">—</div><div class="foot">todas as etapas</div></div>
+        <div class="card"><div class="lbl">Leads Tráfego</div><div class="val" id="c_leads">—</div><div class="foot">Facebook / Meta</div></div>
+        <div class="card"><div class="lbl">CPL Médio</div><div class="val" id="c_cpl">—</div><div class="foot">custo por lead</div></div>
+        <div class="card blue"><div class="lbl">Facebook Ads</div><div class="val" id="c_fb">—</div><div class="foot" id="c_fbleads">— leads</div></div>
+      </div>
+      <div class="grid row-gap">
+        <div class="card"><div class="lbl">Vendas Tráfego</div><div class="val" id="c_vendas">—</div><div class="foot">ads pago + sem origem</div></div>
+        <div class="card"><div class="lbl">CAC</div><div class="val" id="c_cac">—</div><div class="foot">inv. total / vendas</div></div>
+        <div class="card"><div class="lbl">ROAS</div><div class="val" id="c_roas">—</div><div class="foot">faturamento / inv.</div></div>
+      </div>
+
+      <div class="panel">
+        <h3 id="f_title">Funil de Performance — Consolidado</h3>
+        <div class="tree" id="trafegoTree"></div>
+        <p class="note" id="f_note"></p>
+      </div>
+    </section>
+
+    <!-- ===================== RESUMO DE ANÚNCIOS ===================== -->
+    <section class="page" id="anuncios">
+      <h1>Origens Tráfego</h1>
+      <p class="sub">De onde vieram as 40 vendas — tráfego (ads + sem origem) vs orgânico</p>
+
+      <div class="grid">
+        <div class="card"><div class="lbl">Vendas Tráfego</div><div class="val">10</div><div class="foot">ads pago + sem origem</div></div>
+        <div class="card green"><div class="lbl">Vendas Orgânico</div><div class="val">30</div><div class="foot">WhatsApp / IG / Email</div></div>
+        <div class="card plain"><div class="lbl">Faturamento Tráfego</div><div class="val" style="color:var(--gold)">$ 589</div><div class="foot">bruto USD</div></div>
+        <div class="card plain"><div class="lbl">Faturamento Orgânico</div><div class="val" style="color:var(--green)">$ 2.202</div><div class="foot">bruto USD</div></div>
+        <div class="card"><div class="lbl">ROAS Tráfego</div><div class="val">0,16</div><div class="foot">fat. tráfego / inv.</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>Resumo de Origens — Reconciliação das 40 vendas</h3>
+        <div class="tablewrap"><table class="rt" id="tblOrig"><thead></thead><tbody></tbody></table></div>
+        <p class="note">Tráfego = anúncio pago (5) + sem origem rastreável (5). Orgânico = leads que já estavam na base e cujo último clique veio de canal próprio (grupos de WhatsApp, reels no Instagram, email de automação).</p>
+      </div>
+
+      <div class="panel">
+        <h3>Tráfego Pago — Campanhas (Público)</h3>
+        <div class="tablewrap"><table class="rt" id="tblCamp"><thead></thead><tbody></tbody></table></div>
+        <p class="note">Vendas = as 5 rastreáveis a um anúncio pago. Compare ROAS e Conversão para ver o melhor/pior público.</p>
+      </div>
+
+      <div class="panel">
+        <h3>Tráfego Pago — Anúncios</h3>
+        <div class="tablewrap"><table class="rt" id="tblAd"><thead></thead><tbody></tbody></table></div>
+        <p class="note" id="adNote"></p>
+      </div>
+
+      <div class="panel">
+        <h3>Orgânico — por Canal</h3>
+        <div class="tablewrap"><table class="rt" id="tblOrg"><thead></thead><tbody></tbody></table></div>
+        <p class="note">Vendas orgânicas não têm investimento de mídia associado (canais próprios). Faturamento bruto em USD.</p>
+      </div>
+    </section>
+
+    <!-- ===================== INVESTIMENTO POR ETAPA ===================== -->
+    <section class="page" id="etapa">
+      <h1>Investimento por Etapa</h1>
+      <p class="sub">Distribuição do investimento entre as etapas do funil</p>
+      <div class="panel">
+        <h3>Investimento por Etapa</h3>
+        <table>
+          <thead><tr><th>Etapa</th><th>Investimento (USD)</th><th style="width:38%">% Investimento</th></tr></thead>
+          <tbody>
+            <tr><td>Captação</td><td class="num">$ 3.733,22</td><td class="barcell">98,9%<div class="bar" style="width:98.9%"></div></td></tr>
+            <tr><td>CPL</td><td class="num">$ 42,36</td><td class="barcell">1,1%<div class="bar" style="width:1.1%"></div></td></tr>
+            <tr class="total"><td>Total</td><td class="num">$ 3.775,58</td><td>100,0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  // ---- navegação ----
+  const links=document.querySelectorAll('.nav a');
+  const pages=document.querySelectorAll('.page');
+  links.forEach(l=>l.addEventListener('click',()=>{
+    links.forEach(x=>x.classList.remove('active'));
+    pages.forEach(p=>p.classList.remove('active'));
+    l.classList.add('active');
+    document.getElementById(l.dataset.tab).classList.add('active');
+  }));
+
+  // ---- dados DIÁRIOS: anúncios (por dia/temperatura) e vendas de tráfego (por dia) ----
+  const LABELS={quente:'Quente',morno:'Morno',retarget:'Remarketing',cpl:'CPL'};
+  const ORDER=['quente','morno','retarget','cpl'];
+  const AD_DAILY=[{"d":"2026-06-26","b":"quente","spend":58.89,"impr":12629,"clk":298,"leads":81,"pv":182},{"d":"2026-06-26","b":"retarget","spend":421.98,"impr":49243,"clk":991,"leads":344,"pv":577},{"d":"2026-06-27","b":"quente","spend":78.58,"impr":22712,"clk":425,"leads":106,"pv":259},{"d":"2026-06-27","b":"retarget","spend":342.86,"impr":60897,"clk":960,"leads":295,"pv":575},{"d":"2026-06-28","b":"quente","spend":104.51,"impr":27739,"clk":474,"leads":96,"pv":279},{"d":"2026-06-28","b":"retarget","spend":277.43,"impr":47430,"clk":740,"leads":190,"pv":424},{"d":"2026-06-29","b":"quente","spend":168.48,"impr":41716,"clk":616,"leads":120,"pv":357},{"d":"2026-06-29","b":"retarget","spend":316.46,"impr":49937,"clk":828,"leads":227,"pv":477},{"d":"2026-06-30","b":"morno","spend":45.81,"impr":5127,"clk":66,"leads":14,"pv":36},{"d":"2026-06-30","b":"quente","spend":238.43,"impr":49470,"clk":707,"leads":134,"pv":360},{"d":"2026-06-30","b":"retarget","spend":457.19,"impr":62951,"clk":906,"leads":257,"pv":540},{"d":"2026-07-01","b":"morno","spend":96.96,"impr":19617,"clk":273,"leads":87,"pv":152},{"d":"2026-07-01","b":"quente","spend":308.87,"impr":62543,"clk":840,"leads":182,"pv":466},{"d":"2026-07-01","b":"retarget","spend":330.05,"impr":47407,"clk":712,"leads":208,"pv":446},{"d":"2026-07-02","b":"cpl","spend":42.36,"impr":16955,"clk":209,"leads":0,"pv":48},{"d":"2026-07-02","b":"morno","spend":89.87,"impr":18845,"clk":298,"leads":78,"pv":190},{"d":"2026-07-02","b":"quente","spend":170.42,"impr":36093,"clk":591,"leads":143,"pv":378},{"d":"2026-07-02","b":"retarget","spend":226.43,"impr":34143,"clk":536,"leads":184,"pv":342}];
+  // vendas de tráfego por dia: b='retarget' (anúncio pago) ou 'semorigem'
+  const SALES=[{"d":"2026-07-02","b":"retarget","v":3,"fat":220.08},{"d":"2026-07-02","b":"semorigem","v":5,"fat":221.54},{"d":"2026-07-03","b":"retarget","v":1,"fat":73.47},{"d":"2026-07-05","b":"retarget","v":1,"fat":73.47}];
+
+  // ---- formatação ----
+  const nf=new Intl.NumberFormat('pt-BR');
+  const money=(v,dec=0)=> '$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const pct=(v)=> v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+  const dash='—';
+
+  let selected=new Set(); // temperaturas ativas
+
+  function render(){
+    const from=document.getElementById('dateFrom').value; // '' ou 'YYYY-MM-DD'
+    const to=document.getElementById('dateTo').value;
+    const inRange=d=> (!from||d>=from) && (!to||d<=to);
+    const tempOn=selected.size>0;
+
+    // ---- métricas de anúncio (filtra por dia + temperatura) ----
+    const a={spend:0,impr:0,clk:0,leads:0,pv:0};
+    AD_DAILY.forEach(r=>{ if(inRange(r.d) && (!tempOn||selected.has(r.b))){
+      a.spend+=r.spend;a.impr+=r.impr;a.clk+=r.clk;a.leads+=r.leads;a.pv+=r.pv; } });
+
+    // ---- vendas de tráfego (filtra por dia da venda + temperatura) ----
+    // 'retarget' = anúncio pago (bucket remarketing); 'semorigem' = sem origem (só no consolidado)
+    let vendas=0,fat=0;
+    SALES.forEach(r=>{ if(!inRange(r.d)) return;
+      if(r.b==='retarget'){ if(!tempOn||selected.has('retarget')){vendas+=r.v;fat+=r.fat;} }
+      else if(r.b==='semorigem'){ if(!tempOn){vendas+=r.v;fat+=r.fat;} } });
+
+    const cpm=a.impr? a.spend/a.impr*1000:0, ctr=a.impr? a.clk/a.impr*100:0;
+    const cpc=a.clk? a.spend/a.clk:0, cpl=a.leads? a.spend/a.leads:0;
+    const convpag=a.pv? a.leads/a.pv*100:0, connect=a.clk? a.pv/a.clk*100:0;
+    const conv=a.leads? vendas/a.leads*100:0;
+    const cac=vendas? a.spend/vendas:0, roas=a.spend? fat/a.spend:0;
+
+    // rótulos
+    const isAll=!tempOn;
+    const tlabel=isAll?'todas as temperaturas':ORDER.filter(k=>selected.has(k)).map(k=>LABELS[k]).join(' + ');
+    let periodo='';
+    if(from||to){ periodo=' · '+(from?fmtBR(from):'…')+' a '+(to?fmtBR(to):'…'); }
+    document.getElementById('t_sub').textContent='Facebook / Meta Ads · '+tlabel+periodo;
+    document.getElementById('f_title').textContent='Funil de Performance — '+(isAll?'Consolidado':tlabel);
+
+    // cards
+    set('c_invcap', money(a.spend));
+    set('c_invtot', money(a.spend));
+    set('c_leads',  nf.format(a.leads));
+    set('c_cpl',    a.leads? money(cpl,2):dash);
+    set('c_fb',     money(a.spend));
+    set('c_fbleads',nf.format(a.leads)+' leads');
+    set('c_vendas', nf.format(vendas));
+    set('c_cac',    vendas? money(cac,2):dash);
+    set('c_roas',   vendas? roas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash);
+
+    renderTree('trafegoTree',{spend:a.spend,impr:a.impr,clk:a.clk,pv:a.pv,leads:a.leads,
+      vendas,fat,cpm,ctr,cpc,cpl,convpag,connect,conv,roas});
+
+    // nota
+    const note=document.getElementById('f_note');
+    let msg;
+    if(a.spend===0 && vendas===0){ msg='Sem dados de anúncio ou venda no período/público selecionado.'; }
+    else if(isAll && !from && !to){ msg='Tráfego consolidado: 10 vendas (5 de anúncio pago + 5 sem origem). As 30 vendas orgânicas não entram no funil de tráfego — veja a aba Origens Tráfego. Anúncios rodaram 26/06–02/07; vendas ocorreram 02/07–07/07.'; }
+    else { msg='Período/público filtrado — '+nf.format(a.leads)+' leads, '+vendas+' venda(s) de tráfego. Lembre: anúncios rodaram 26/06–02/07 e vendas 02/07–07/07, então intervalos estreitos podem mostrar leads sem vendas (ou vice-versa).'; }
+    note.textContent=msg;
+  }
+  function fmtBR(iso){const p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  function set(id,v){document.getElementById(id).textContent=v;}
+
+  // ---- funil em árvore (mesmo estilo do print) ----
+  function fmtRoas(v,has){return has? v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash;}
+  function renderTree(id,m){
+    const hasImpr=m.impr>0,hasClk=m.clk>0,hasPv=m.pv>0,hasLeads=m.leads>0,hasVen=m.vendas>0;
+    const stages=[
+      {k:'Gasto Dólar',v:money(m.spend),gold:true},
+      {k:'Impressões',v:nf.format(m.impr),branch:{pos:'bot',k:'CPM',v:hasImpr?money(m.cpm,2):dash}},
+      {k:'Cliques',v:nf.format(m.clk),branch:{pos:'top',k:'CTR',v:hasImpr?pct(m.ctr):dash}},
+      {k:'Page Views',v:nf.format(m.pv),branch:{pos:'bot',k:'Connect Rate',v:hasClk?pct(m.connect):dash}},
+      {k:'Leads',v:nf.format(m.leads),branch:{pos:'top',k:'Conv. de Página',v:hasPv?pct(m.convpag):dash}},
+      {k:'CPL',v:hasLeads?money(m.cpl,2):dash,gold:true,branch:{pos:'bot',k:'CPC',v:hasClk?money(m.cpc,2):dash}},
+      {k:'Vendas',v:nf.format(m.vendas),branch:{pos:'top',k:'Conversão',v:hasLeads?pct(m.conv):dash}},
+      {k:'Faturamento',v:money(m.fat),gold:true,branch:{pos:'bot',k:'ROAS',v:fmtRoas(m.roas,hasVen)}}
+    ];
+    const bn=(b)=>'<div class="bnode"><div class="k">'+b.k+'</div><div class="v">'+b.v+'</div></div>';
+    let html='';
+    stages.forEach(s=>{
+      const top = (s.branch&&s.branch.pos==='top')
+        ? '<div class="branch top">'+bn(s.branch)+'<div class="vconn"></div></div>'
+        : '<div class="branch top"></div>';
+      const bot = (s.branch&&s.branch.pos==='bot')
+        ? '<div class="branch bot"><div class="vconn"></div>'+bn(s.branch)+'</div>'
+        : '<div class="branch bot"></div>';
+      html+='<div class="stage">'+top+'<div class="mnode'+(s.gold?' gold':'')+'"><div class="k">'+s.k+'</div><div class="v">'+s.v+'</div></div>'+bot+'</div>';
+    });
+    document.getElementById(id).innerHTML=html;
+  }
+
+  // ---- interação ----
+  document.querySelectorAll('.pill[data-temp]').forEach(p=>p.addEventListener('click',()=>{
+    p.classList.toggle('on');
+    const t=p.dataset.temp;
+    if(selected.has(t))selected.delete(t); else selected.add(t);
+    // não re-renderiza até "Aplicar" (comportamento do dash original)
+  }));
+  document.getElementById('btnApply').addEventListener('click',render);
+  document.getElementById('btnClear').addEventListener('click',()=>{
+    selected.clear();
+    document.querySelectorAll('.pill[data-temp]').forEach(p=>p.classList.remove('on'));
+    document.getElementById('dateFrom').value='';
+    document.getElementById('dateTo').value='';
+    render();
+  });
+
+  render(); // estado inicial (consolidado)
+
+  // ================= RESUMO DE ANÚNCIOS =================
+  const ADS=[
+   {nome:"adv006",inv:1561.55,leads:1226,cpl:1.27,vendas:0,fat:0,conv:0,roas:0,cpm:5.26,ctr:1.59,impr:297104},
+   {nome:"adv002",inv:969.81,leads:702,cpl:1.38,vendas:2,fat:146.94,conv:0.28,roas:0.15,cpm:6.10,ctr:1.53,impr:159026},
+   {nome:"adv003",inv:429.93,leads:246,cpl:1.75,vendas:1,fat:73.36,conv:0.41,roas:0.17,cpm:6.49,ctr:1.67,impr:66262},
+   {nome:"adv004",inv:313.10,leads:243,cpl:1.29,vendas:1,fat:73.36,conv:0.41,roas:0.23,cpm:5.58,ctr:1.61,impr:56096},
+   {nome:"adv007",inv:182.57,leads:135,cpl:1.35,vendas:1,fat:73.36,conv:0.74,roas:0.40,cpm:8.39,ctr:2.10,impr:21755},
+   {nome:"adv005",inv:168.64,leads:112,cpl:1.51,vendas:0,fat:0,conv:0,roas:0,cpm:5.65,ctr:1.26,impr:29851},
+   {nome:"adv001",inv:107.62,leads:82,cpl:1.31,vendas:0,fat:0,conv:0,roas:0,cpm:5.85,ctr:1.51,impr:18405},
+   {nome:"cpl-ao_vivo-adi001",inv:42.36,leads:0,cpl:0,vendas:0,fat:0,conv:0,roas:0,cpm:2.50,ctr:1.23,impr:16955}
+  ];
+  const CAMPS=[
+   {nome:"leads_antigas",tipo:"Remarketing",inv:1317.51,leads:1012,cpl:1.30,vendas:4,fat:293.66,conv:0.40,roas:0.22,cpm:6.38,ctr:1.49,impr:206533},
+   {nome:"cadastrados_mdi_jun26",tipo:"Remarketing",inv:1054.89,leads:693,cpl:1.52,vendas:1,fat:73.36,conv:0.14,roas:0.07,cpm:7.25,ctr:1.78,impr:145475},
+   {nome:"quentes",tipo:"Quente",inv:953.23,leads:740,cpl:1.29,vendas:0,fat:0,conv:0,roas:0,cpm:4.32,ctr:1.57,impr:220458},
+   {nome:"morno",tipo:"Morno",inv:232.64,leads:179,cpl:1.30,vendas:0,fat:0,conv:0,roas:0,cpm:5.34,ctr:1.46,impr:43589},
+   {nome:"todos_quentes",tipo:"Quente",inv:174.95,leads:122,cpl:1.43,vendas:0,fat:0,conv:0,roas:0,cpm:5.39,ctr:1.52,impr:32444},
+   {nome:"cpl-aula-alcance",tipo:"CPL",inv:30.83,leads:0,cpl:0,vendas:0,fat:0,conv:0,roas:0,cpm:2.20,ctr:0.79,impr:14023},
+   {nome:"cpl-aula-trafego",tipo:"CPL",inv:11.53,leads:0,cpl:0,vendas:0,fat:0,conv:0,roas:0,cpm:3.93,ctr:3.34,impr:2932}
+  ];
+  const roasCls=r=> r>=1?'roas-good': r>=0.5?'roas-mid':'roas-bad';
+  const m2=v=>'$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  function buildTable(tblId,data,firstHead,typeCol){
+    const cols=['Investimento','Impressões','CTR','CPM','Leads','CPL','Vendas','Conversão','Faturamento','ROAS'];
+    const thead=document.querySelector('#'+tblId+' thead');
+    thead.innerHTML='<tr><th>'+firstHead+'</th>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>';
+    const tb=document.querySelector('#'+tblId+' tbody');
+    const T={inv:0,impr:0,leads:0,vendas:0,fat:0};
+    let html='';
+    data.forEach(d=>{
+      T.inv+=d.inv;T.impr+=d.impr;T.leads+=d.leads;T.vendas+=d.vendas;T.fat+=d.fat;
+      const nmeta = typeCol ? '<span class="chip">'+d.tipo+'</span>' : '';
+      html+='<tr><td>'+d.nome+nmeta+'</td>'
+        +'<td>'+m2(d.inv)+'</td>'
+        +'<td>'+nf.format(d.impr)+'</td>'
+        +'<td>'+(d.impr?pct(d.ctr):dash)+'</td>'
+        +'<td>'+(d.impr?m2(d.cpm):dash)+'</td>'
+        +'<td>'+nf.format(d.leads)+'</td>'
+        +'<td>'+(d.leads?m2(d.cpl):dash)+'</td>'
+        +'<td>'+d.vendas+'</td>'
+        +'<td>'+(d.leads?pct(d.conv):dash)+'</td>'
+        +'<td>'+m2(d.fat)+'</td>'
+        +'<td class="'+(d.vendas?roasCls(d.roas):'')+'">'+(d.vendas?d.roas.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash)+'</td></tr>';
+    });
+    const ctrT=T.impr?T.impr:0;
+    html+='<tr class="trow-total"><td>Total</td>'
+      +'<td>'+m2(T.inv)+'</td><td>'+nf.format(T.impr)+'</td><td>—</td><td>—</td>'
+      +'<td>'+nf.format(T.leads)+'</td>'
+      +'<td>'+(T.leads?m2(T.inv/T.leads):dash)+'</td>'
+      +'<td>'+T.vendas+'</td>'
+      +'<td>'+(T.leads?pct(T.vendas/T.leads*100):dash)+'</td>'
+      +'<td>'+m2(T.fat)+'</td>'
+      +'<td class="'+(T.vendas?roasCls(T.fat/T.inv):'')+'">'+(T.inv?(T.fat/T.inv).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):dash)+'</td></tr>';
+    tb.innerHTML=html;
+  }
+  // funil consolidado da Visão Geral
+  renderTree('geralTree',{spend:3775.58,impr:665454,clk:10470,pv:6088,leads:2746,vendas:10,
+    fat:588.56,cpm:5.67,ctr:1.57,cpc:0.36,cpl:1.37,convpag:45.11,connect:58.15,conv:0.36,roas:0.16});
+
+  buildTable('tblCamp',CAMPS,'Campanha / Público',true);
+  buildTable('tblAd',ADS,'Anúncio',false);
+  document.getElementById('adNote').textContent='Vendas por anúncio = as 5 com anúncio pago rastreável na Base A/C. As demais estão no orgânico (por canal, abaixo) ou sem origem.';
+
+  // ---- reconciliação de origens (fecha em 40) ----
+  const ORIG=[
+   {o:'Tráfego — Anúncio pago',tipo:'Tráfego',v:5,fat:367.02,inv:3775.58},
+   {o:'Tráfego — Sem origem',tipo:'Tráfego',v:5,fat:221.54,inv:0},
+   {o:'Orgânico — WhatsApp',tipo:'Orgânico',v:22,fat:1615.22,inv:0},
+   {o:'Orgânico — Instagram',tipo:'Orgânico',v:4,fat:293.34,inv:0},
+   {o:'Orgânico — Email',tipo:'Orgânico',v:4,fat:293.66,inv:0}
+  ];
+  const ORG=[
+   {c:'WhatsApp / base antiga',v:22,fat:1615.22},
+   {c:'Instagram / reels',v:4,fat:293.34},
+   {c:'Email / automação',v:4,fat:293.66}
+  ];
+  const TOTV=40;
+
+  (function(){ // tabela reconciliação
+    const cols=['Vendas','% das Vendas','Faturamento','Ticket Médio','Investimento'];
+    document.querySelector('#tblOrig thead').innerHTML='<tr><th>Origem</th>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>';
+    let T={v:0,fat:0,inv:0},html='';
+    ORIG.forEach(d=>{T.v+=d.v;T.fat+=d.fat;T.inv+=d.inv;
+      const tc=d.tipo==='Orgânico'?'roas-good':'roas-mid';
+      html+='<tr><td>'+d.o+'<span class="chip">'+d.tipo+'</span></td>'
+        +'<td>'+d.v+'</td><td>'+pct(d.v/TOTV*100)+'</td>'
+        +'<td>'+m2(d.fat)+'</td><td>'+m2(d.fat/d.v)+'</td>'
+        +'<td>'+(d.inv?m2(d.inv):dash)+'</td></tr>';});
+    html+='<tr class="trow-total"><td>Total</td><td>'+T.v+'</td><td>100,00%</td><td>'+m2(T.fat)+'</td><td>'+m2(T.fat/T.v)+'</td><td>'+m2(T.inv)+'</td></tr>';
+    document.querySelector('#tblOrig tbody').innerHTML=html;
+  })();
+
+  (function(){ // tabela orgânico por canal
+    const cols=['Vendas','% do Orgânico','Faturamento','Ticket Médio'];
+    document.querySelector('#tblOrg thead').innerHTML='<tr><th>Canal</th>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>';
+    let T={v:0,fat:0},html='';
+    ORG.forEach(d=>{T.v+=d.v;T.fat+=d.fat;
+      html+='<tr><td>'+d.c+'</td><td>'+d.v+'</td><td>'+pct(d.v/30*100)+'</td><td>'+m2(d.fat)+'</td><td>'+m2(d.fat/d.v)+'</td></tr>';});
+    html+='<tr class="trow-total"><td>Total Orgânico</td><td>'+T.v+'</td><td>100,00%</td><td>'+m2(T.fat)+'</td><td>'+m2(T.fat/T.v)+'</td></tr>';
+    document.querySelector('#tblOrg tbody').innerHTML=html;
+  })();
+</script>
+</body>
+</html>
